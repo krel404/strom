@@ -105,7 +105,7 @@ const palettes = {
 const paletteNames = Object.keys(palettes);
 
 function setup() {
-    createCanvas(1200, 800);
+    createCanvas(windowWidth, windowHeight);
     cols = floor(width / resolution);
     rows = floor(height / resolution);
     
@@ -510,135 +510,54 @@ function keyPressed() {
     }
 }
 
-// Control functions
-function regenerate() {
-    noiseScale = random(0.005, 0.02);
-    obstacles = [];
-    initializeFlowField();
-    updateFlowFieldWithMouse(); // Initialize all layers properly
-    initializeParticles();
-}
-
-function toggleFlowField() {
-    showFlowField = !showFlowField;
-}
-
-function cyclePalette() {
-    currentPalette = (currentPalette + 1) % paletteNames.length;
-}
-
-
-function clearObstacles() {
-    obstacles = [];
-}
-
-// Real-time control functions
-function updateTurbulence(value) {
-    noiseScale = parseFloat(value);
-    document.getElementById('turbulenceValue').textContent = parseFloat(value).toFixed(3);
-}
-
-function updateSpeed(value) {
-    maxSpeed = parseFloat(value);
-    // Update existing particles
-    for (let particle of particles) {
-        particle.maxSpeed = maxSpeed;
-    }
-    document.getElementById('speedValue').textContent = parseFloat(value).toFixed(1);
-}
-
-function updateParticleCount(value) {
-    let newCount = parseInt(value);
-    if (newCount > particleCount) {
-        // Add particles
-        for (let i = particleCount; i < newCount; i++) {
-            particles.push(new Particle());
-        }
-    } else if (newCount < particleCount) {
-        // Remove particles
-        particles.splice(newCount);
-    }
-    particleCount = newCount;
-    document.getElementById('particleValue').textContent = newCount;
-}
-
-function updateVortexStrength(value) {
-    vortexStrength = parseFloat(value);
-    document.getElementById('vortexValue').textContent = parseFloat(value).toFixed(1);
-}
-
-function updateFlowLayers(value) {
-    flowLayers = parseInt(value);
-    document.getElementById('layersValue').textContent = value;
-    console.log('Flow layers updated to:', flowLayers);
-}
-
-function updateParticleSize(value) {
-    particleSize = parseFloat(value);
-    document.getElementById('sizeValue').textContent = parseFloat(value).toFixed(1);
-}
-
-function updateGradientMode(value) {
-    gradientMode = parseInt(value);
-    let modeNames = ['Palette', 'Speed', 'Direction'];
-    document.getElementById('gradientValue').textContent = modeNames[gradientMode];
-}
-
-function updateGradientIntensity(value) {
-    gradientIntensity = parseFloat(value);
-    document.getElementById('intensityValue').textContent = parseFloat(value).toFixed(1);
-}
-
-function updateTopography(value) {
-    topographyIntensity = parseFloat(value);
-    document.getElementById('topographyValue').textContent = parseFloat(value).toFixed(1);
-}
 
 function randomizeSettings() {
     // Randomize turbulence (0.005 - 0.05)
     noiseScale = random(0.005, 0.05);
-    document.getElementById('turbulenceSlider').value = noiseScale;
-    document.getElementById('turbulenceValue').textContent = noiseScale.toFixed(3);
     
     // Randomize speed (0.5 - 4.0)
     maxSpeed = random(0.5, 4.0);
-    document.getElementById('speedSlider').value = maxSpeed;
-    document.getElementById('speedValue').textContent = maxSpeed.toFixed(1);
+    // Update existing particles
+    for (let particle of particles) {
+        particle.maxSpeed = maxSpeed;
+    }
     
     // Randomize particle count (100 - 1500)
     let newParticleCount = floor(random(100, 1501));
+    if (newParticleCount > particleCount) {
+        // Add particles
+        for (let i = particleCount; i < newParticleCount; i++) {
+            particles.push(new Particle());
+        }
+    } else if (newParticleCount < particleCount) {
+        // Remove particles
+        particles.splice(newParticleCount);
+    }
     particleCount = newParticleCount;
-    document.getElementById('particleSlider').value = particleCount;
-    document.getElementById('particleValue').textContent = particleCount;
     
     // Randomize attractor strength (0 - 5.0)
     vortexStrength = random(0, 5.0);
-    document.getElementById('vortexSlider').value = vortexStrength;
-    document.getElementById('vortexValue').textContent = vortexStrength.toFixed(1);
     
     // Randomize flow layers (1 - 3)
     flowLayers = floor(random(1, 4));
-    document.getElementById('layersSlider').value = flowLayers;
-    document.getElementById('layersValue').textContent = flowLayers;
     
     // Randomize particle size (1 - 10)
     particleSize = random(1, 10);
-    document.getElementById('sizeSlider').value = particleSize;
-    document.getElementById('sizeValue').textContent = particleSize.toFixed(1);
     
     // Randomize gradient mode (0 - 2)
     gradientMode = floor(random(0, 3));
-    document.getElementById('gradientSlider').value = gradientMode;
-    let modeNames = ['Palette', 'Speed', 'Direction'];
-    document.getElementById('gradientValue').textContent = modeNames[gradientMode];
     
     // Randomize gradient intensity (0 - 1)
     gradientIntensity = random(0, 1);
-    document.getElementById('intensitySlider').value = gradientIntensity;
-    document.getElementById('intensityValue').textContent = gradientIntensity.toFixed(1);
     
     // Randomize topography intensity (0 - 1)
     topographyIntensity = random(0, 1);
-    document.getElementById('topographySlider').value = topographyIntensity;
-    document.getElementById('topographyValue').textContent = topographyIntensity.toFixed(1);
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    cols = floor(width / resolution);
+    rows = floor(height / resolution);
+    initializeFlowField();
+    updateFlowFieldWithMouse();
 }
