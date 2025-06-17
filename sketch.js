@@ -16,20 +16,13 @@ let maxSpeed = 2;
 let flowLayers = 1;
 let particleSize = 3;
 
-// Audio variables
-let audioContext;
-let analyser;
-let audioBuffer;
-let sourceNode;
-let freqData;
-let isAudioReactive = false;
-let bassLevel = 0;
-let midLevel = 0;
-let trebleLevel = 0;
-let beatThreshold = 0.8;
-let lastBeatTime = 0;
-let bpm = 120;
-let audioTimeScale = 1;
+// Gradient field variables
+let gradientMode = 0; // 0 = palette colors, 1 = speed gradient, 2 = direction gradient
+let gradientIntensity = 0.5;
+
+// Topography variables
+let topographyIntensity = 0;
+
 
 const palettes = {
     tropical: {
@@ -125,14 +118,9 @@ function setup() {
     initializeFlowField();
     updateFlowFieldWithMouse(); // Initialize all layers properly
     initializeParticles();
-    setupAudio();
 }
 
 function draw() {
-    if (isAudioReactive) {
-        updateAudioAnalysis();
-    }
-    
     let palette = palettes[paletteNames[currentPalette]];
     background(palette.deep[0], palette.deep[1], palette.deep[2], 30);
     
@@ -144,10 +132,6 @@ function draw() {
     
     drawObstacles();
     updateAndDrawParticles();
-    
-    if (isAudioReactive) {
-        drawAudioVisuals();
-    }
 }
 
 function initializeFlowField() {
@@ -184,7 +168,7 @@ class Particle {
         this.age = 0;
         this.maxAge = random(200, 500);
         this.trail = [];
-        this.trailLength = 15;
+        this.baseTrailLength = 15;
     }
     
     update() {
@@ -236,9 +220,13 @@ class Particle {
         // Add current position to trail
         this.trail.push(createVector(this.pos.x, this.pos.y));
         
-        // Keep trail at maximum length
-        if (this.trail.length > this.trailLength) {
-            this.trail.splice(0, 1);
+        // Calculate dynamic trail length based on speed
+        let speedRatio = this.vel.mag() / this.maxSpeed;
+        let dynamicTrailLength = this.baseTrailLength + (speedRatio * 25); // Fast particles get up to 40 trail points
+        
+        // Keep trail at dynamic length
+        if (this.trail.length > dynamicTrailLength) {
+            this.trail.splice(0, this.trail.length - dynamicTrailLength);
         }
         
         // Wrap around edges
@@ -250,6 +238,7 @@ class Particle {
     
     display() {
         let palette = palettes[paletteNames[currentPalette]];
+        let particleColor = this.getGradientColor(palette);
         
         // Draw trail
         for (let i = 0; i < this.trail.length; i++) {
@@ -257,16 +246,140 @@ class Particle {
             let trailAlpha = map(i, 0, this.trail.length - 1, 10, 200);
             let trailSize = map(i, 0, this.trail.length - 1, particleSize * 0.2, particleSize);
             
-            fill(palette.particle[0], palette.particle[1], palette.particle[2], trailAlpha);
+            fill(particleColor.r, particleColor.g, particleColor.b, trailAlpha);
             noStroke();
             circle(trailPos.x, trailPos.y, trailSize);
         }
         
         // Draw main particle (brightest)
         let alpha = map(this.vel.mag(), 0, this.maxSpeed, 100, 255);
-        fill(palette.particle[0], palette.particle[1], palette.particle[2], alpha);
+        fill(particleColor.r, particleColor.g, particleColor.b, alpha);
         noStroke();
         circle(this.pos.x, this.pos.y, particleSize);
+    }
+    
+    getGradientColor(palette) {
+        let baseColor = {
+            r: palette.particle[0],
+            g: palette.particle[1], 
+            b: palette.particle[2]
+        };
+        
+        // Apply topography effect if enabled
+        if (topographyIntensity > 0) {
+            baseColor = this.applyTopography(baseColor, palette);
+        }
+        
+        if (gradientMode === 0) {
+            // Standard palette colors
+            return baseColor;
+        } else if (gradientMode === 1) {
+            // Speed-based gradient
+            let speedRatio = this.vel.mag() / this.maxSpeed;
+            let accentColor = {
+                r: palette.accent[0],
+                g: palette.accent[1], 
+                b: palette.accent[2]
+            };
+            
+            // Interpolate between base and accent based on speed
+            let mixAmount = speedRatio * gradientIntensity;
+            return {
+                r: lerp(baseColor.r, accentColor.r, mixAmount),
+                g: lerp(baseColor.g, accentColor.g, mixAmount),
+                b: lerp(baseColor.b, accentColor.b, mixAmount)
+            };
+        } else if (gradientMode === 2) {
+            // Direction-based gradient - subtle zen approach
+            let angle = atan2(this.vel.y, this.vel.x);
+            let hue = map(angle, -PI, PI, 0, 360);
+            
+            // Subtle but more noticeable saturation for zen feel
+            let saturation = 35 + (25 * gradientIntensity); // Range: 35-60%
+            let brightness = 75 + (15 * gradientIntensity);  // Range: 75-90%
+            
+            // Blend with palette base color for cohesion
+            let hsvColor = this.hsvToRgb(hue, saturation, brightness);
+            
+            // Mix HSV result with palette base (60% base, 40% gradient)
+            let mixRatio = 0.4 * gradientIntensity;
+            return {
+                r: lerp(baseColor.r, hsvColor.r, mixRatio),
+                g: lerp(baseColor.g, hsvColor.g, mixRatio),
+                b: lerp(baseColor.b, hsvColor.b, mixRatio)
+            };
+        }
+    }
+    
+    applyTopography(baseColor, palette) {
+        // Create elevation map using multiple noise layers
+        let elevation = 0;
+        let scale1 = 0.003; // Large features
+        let scale2 = 0.01;  // Medium features  
+        let scale3 = 0.03;  // Fine details
+        
+        elevation += noise(this.pos.x * scale1, this.pos.y * scale1) * 0.6;
+        elevation += noise(this.pos.x * scale2, this.pos.y * scale2) * 0.3;
+        elevation += noise(this.pos.x * scale3, this.pos.y * scale3) * 0.1;
+        
+        // Map elevation to color zones (0-1 range)
+        let lowColor = palette.deep;      // Valleys/water - darkest
+        let midColor = palette.particle;  // Plains - base color
+        let highColor = palette.accent;   // Mountains/peaks - lightest
+        
+        let resultColor;
+        if (elevation < 0.4) {
+            // Low elevation: blend between deep and particle
+            let t = map(elevation, 0, 0.4, 0, 1);
+            resultColor = {
+                r: lerp(lowColor[0], midColor[0], t),
+                g: lerp(lowColor[1], midColor[1], t),
+                b: lerp(lowColor[2], midColor[2], t)
+            };
+        } else {
+            // High elevation: blend between particle and accent
+            let t = map(elevation, 0.4, 1, 0, 1);
+            resultColor = {
+                r: lerp(midColor[0], highColor[0], t),
+                g: lerp(midColor[1], highColor[1], t),
+                b: lerp(midColor[2], highColor[2], t)
+            };
+        }
+        
+        // Blend topography result with original base color
+        return {
+            r: lerp(baseColor.r, resultColor.r, topographyIntensity),
+            g: lerp(baseColor.g, resultColor.g, topographyIntensity),
+            b: lerp(baseColor.b, resultColor.b, topographyIntensity)
+        };
+    }
+    
+    hsvToRgb(h, s, v) {
+        h = h / 360;
+        s = s / 100;
+        v = v / 100;
+        
+        let r, g, b;
+        let i = Math.floor(h * 6);
+        let f = h * 6 - i;
+        let p = v * (1 - s);
+        let q = v * (1 - f * s);
+        let t = v * (1 - (1 - f) * s);
+        
+        switch (i % 6) {
+            case 0: r = v, g = t, b = p; break;
+            case 1: r = q, g = v, b = p; break;
+            case 2: r = p, g = v, b = t; break;
+            case 3: r = p, g = q, b = v; break;
+            case 4: r = t, g = p, b = v; break;
+            case 5: r = v, g = p, b = q; break;
+        }
+        
+        return {
+            r: Math.round(r * 255),
+            g: Math.round(g * 255),
+            b: Math.round(b * 255)
+        };
     }
     
     isDead() {
@@ -304,11 +417,7 @@ function drawFlowField() {
 }
 
 function updateFlowFieldWithMouse() {
-    // Audio-reactive time scaling
-    let timeOffset = frameCount * 0.001 * audioTimeScale;
-    
-    // Bass-driven base turbulence
-    let bassTurbulence = isAudioReactive ? noiseScale * (1 + bassLevel * 2) : noiseScale;
+    let timeOffset = frameCount * 0.001;
     
     // Base flow field (Layer 1)
     let yoff = timeOffset;
@@ -316,16 +425,12 @@ function updateFlowFieldWithMouse() {
         let xoff = timeOffset;
         for (let x = 0; x < cols; x++) {
             let angle = noise(xoff, yoff, timeOffset) * TWO_PI * 2;
-            // Audio-reactive intensity
-            if (isAudioReactive) {
-                angle += midLevel * PI;
-            }
             let vector = p5.Vector.fromAngle(angle);
-            vector.mult(0.5 * (isAudioReactive ? (1 + trebleLevel * 0.5) : 1));
+            vector.mult(0.5);
             flowField[y][x] = vector;
-            xoff += bassTurbulence;
+            xoff += noiseScale;
         }
-        yoff += bassTurbulence;
+        yoff += noiseScale;
     }
     
     // Layer 2 - Different scale and speed (more pronounced)
@@ -427,20 +532,6 @@ function clearObstacles() {
     obstacles = [];
 }
 
-function toggleAudio() {
-    const btn = document.getElementById('audioBtn');
-    if (!isAudioReactive) {
-        startAudioInput();
-        btn.textContent = '🎵 Disable Audio';
-        btn.style.background = '#555';
-    } else {
-        stopAudioInput();
-        btn.textContent = '🎵 Enable Audio';
-        btn.style.background = '#333';
-    }
-}
-
-
 // Real-time control functions
 function updateTurbulence(value) {
     noiseScale = parseFloat(value);
@@ -487,6 +578,22 @@ function updateParticleSize(value) {
     document.getElementById('sizeValue').textContent = parseFloat(value).toFixed(1);
 }
 
+function updateGradientMode(value) {
+    gradientMode = parseInt(value);
+    let modeNames = ['Palette', 'Speed', 'Direction'];
+    document.getElementById('gradientValue').textContent = modeNames[gradientMode];
+}
+
+function updateGradientIntensity(value) {
+    gradientIntensity = parseFloat(value);
+    document.getElementById('intensityValue').textContent = parseFloat(value).toFixed(1);
+}
+
+function updateTopography(value) {
+    topographyIntensity = parseFloat(value);
+    document.getElementById('topographyValue').textContent = parseFloat(value).toFixed(1);
+}
+
 function randomizeSettings() {
     // Randomize turbulence (0.005 - 0.05)
     noiseScale = random(0.005, 0.05);
@@ -518,105 +625,20 @@ function randomizeSettings() {
     particleSize = random(1, 10);
     document.getElementById('sizeSlider').value = particleSize;
     document.getElementById('sizeValue').textContent = particleSize.toFixed(1);
-}
-
-// Audio System Functions
-function setupAudio() {
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        freqData = new Uint8Array(analyser.frequencyBinCount);
-    } catch (e) {
-        console.log('Web Audio API not supported');
-    }
-}
-
-function startAudioInput() {
-    if (!audioContext) return;
     
-    // Resume audio context if suspended
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
+    // Randomize gradient mode (0 - 2)
+    gradientMode = floor(random(0, 3));
+    document.getElementById('gradientSlider').value = gradientMode;
+    let modeNames = ['Palette', 'Speed', 'Direction'];
+    document.getElementById('gradientValue').textContent = modeNames[gradientMode];
     
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            const source = audioContext.createMediaStreamSource(stream);
-            source.connect(analyser);
-            isAudioReactive = true;
-            console.log('Audio reactive mode enabled');
-        })
-        .catch(err => {
-            console.log('Microphone access denied', err);
-        });
-}
-
-function stopAudioInput() {
-    isAudioReactive = false;
-    bassLevel = 0;
-    midLevel = 0;
-    trebleLevel = 0;
-    audioTimeScale = 1;
-}
-
-function updateAudioAnalysis() {
-    if (!analyser || !isAudioReactive) return;
+    // Randomize gradient intensity (0 - 1)
+    gradientIntensity = random(0, 1);
+    document.getElementById('intensitySlider').value = gradientIntensity;
+    document.getElementById('intensityValue').textContent = gradientIntensity.toFixed(1);
     
-    analyser.getByteFrequencyData(freqData);
-    
-    // Split into frequency ranges
-    const bassRange = freqData.slice(0, 10);   // Low frequencies
-    const midRange = freqData.slice(10, 40);   // Mid frequencies  
-    const trebleRange = freqData.slice(40, 128); // High frequencies
-    
-    // Calculate average levels (0-1 range)
-    bassLevel = bassRange.reduce((a, b) => a + b) / (bassRange.length * 255);
-    midLevel = midRange.reduce((a, b) => a + b) / (midRange.length * 255);
-    trebleLevel = trebleRange.reduce((a, b) => a + b) / (trebleRange.length * 255);
-    
-    // BPM-based time scaling (Lumines inspired)
-    bpm = 60 + (bassLevel + midLevel) * 120; // Dynamic BPM 60-180
-    audioTimeScale = map(bpm, 60, 180, 0.5, 2.0);
-    
-    // Beat detection for layer switching
-    let totalLevel = (bassLevel + midLevel + trebleLevel) / 3;
-    if (totalLevel > beatThreshold && millis() - lastBeatTime > 500) {
-        // Auto-cycle flow layers on beats
-        if (totalLevel > 0.9) {
-            flowLayers = (flowLayers % 3) + 1;
-            lastBeatTime = millis();
-        }
-        
-        // Palette switching on strong beats
-        if (totalLevel > 0.95) {
-            currentPalette = (currentPalette + 1) % paletteNames.length;
-        }
-    }
-}
-
-function drawAudioVisuals() {
-    if (!isAudioReactive) return;
-    
-    let palette = palettes[paletteNames[currentPalette]];
-    
-    // Audio level indicator
-    fill(palette.accent[0], palette.accent[1], palette.accent[2], 150);
-    noStroke();
-    
-    // Bass indicator (bottom left)
-    rect(10, height - 20, bassLevel * 100, 10);
-    
-    // Mid indicator (middle left)
-    rect(10, height - 40, midLevel * 100, 10);
-    
-    // Treble indicator (top left)
-    rect(10, height - 60, trebleLevel * 100, 10);
-    
-    // BPM display
-    fill(255, 200);
-    textSize(12);
-    textAlign(LEFT);
-    text('BPM: ' + Math.round(bpm), 120, height - 35);
-    text('Audio Mode', 120, height - 20);
+    // Randomize topography intensity (0 - 1)
+    topographyIntensity = random(0, 1);
+    document.getElementById('topographySlider').value = topographyIntensity;
+    document.getElementById('topographyValue').textContent = topographyIntensity.toFixed(1);
 }

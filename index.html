@@ -61,8 +61,6 @@
         <button onclick="regenerate()">New Flow Field</button>
         <button onclick="toggleFlowField()">Toggle Flow Field</button>
         <button onclick="cyclePalette()">Change Palette</button>
-        <button onclick="clearObstacles()">Clear Obstacles</button>
-        <button id="audioBtn" onclick="toggleAudio()">🎵 Enable Audio</button>
         
         <div class="slider-container">
             <div class="slider-label">Turbulence:</div>
@@ -100,12 +98,24 @@
             <div class="slider-value" id="sizeValue">3.0</div>
         </div>
         
-        <div style="margin-top: 10px; font-size: 12px;">
-            <div>Move mouse to attract particles</div>
-            <div>Click to place invisible obstacles</div>
-            <div>Press 'C' to clear obstacles</div>
-            <div style="margin-top: 8px; color: #ff9;">🎵 Audio Mode: Flow fields react to microphone input</div>
+        <div class="slider-container">
+            <div class="slider-label">Gradient:</div>
+            <input type="range" class="slider" id="gradientSlider" min="0" max="2" step="1" value="0" oninput="updateGradientMode(this.value)">
+            <div class="slider-value" id="gradientValue">Palette</div>
         </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Intensity:</div>
+            <input type="range" class="slider" id="intensitySlider" min="0" max="1" step="0.1" value="0.5" oninput="updateGradientIntensity(this.value)">
+            <div class="slider-value" id="intensityValue">0.5</div>
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Topography:</div>
+            <input type="range" class="slider" id="topographySlider" min="0" max="1" step="0.1" value="0" oninput="updateTopography(this.value)">
+            <div class="slider-value" id="topographyValue">0.0</div>
+        </div>
+        
     </div>
     <script src="sketch.js"></script>
 </body>
