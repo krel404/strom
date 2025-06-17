@@ -24,9 +24,7 @@ A mesmerizing generative art experience featuring flow fields, particle systems,
 
 ## 🎨 Navigation
 
-- **Regenerate**: Create new randomized art
-- **Palette**: Cycle through color schemes
-- **Flow Field**: Toggle flow field visualization
+- **Reroll**: Complete randomization of all parameters for fresh art
 - **Save**: Download current canvas as PNG
 
 ## 🚀 Live Demo
