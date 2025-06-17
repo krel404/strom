@@ -19,12 +19,14 @@
             top: 0;
             left: 0;
             right: 0;
+            height: 70px;
             z-index: 100;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 30px;
-            pointer-events: none;
+            padding: 0 40px;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
         }
         
         .title {
@@ -32,13 +34,11 @@
             font-size: 24px;
             font-weight: 600;
             letter-spacing: -0.5px;
-            pointer-events: auto;
         }
         
         .nav-menu {
             display: flex;
             gap: 30px;
-            pointer-events: auto;
         }
         
         .nav-item {
@@ -53,17 +53,30 @@
         .nav-item:hover {
             color: rgba(255, 255, 255, 1);
         }
+        
+        .canvas-container {
+            position: fixed;
+            top: 70px;
+            left: 30px;
+            right: 30px;
+            bottom: 30px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">Ström</div>
         <nav class="nav-menu">
-            <a href="#" class="nav-item" onclick="regenerateArt()">Regenerate</a>
-            <a href="#" class="nav-item" onclick="cyclePalette()">Palette</a>
-            <a href="#" class="nav-item" onclick="toggleFlowField()">Flow Field</a>
+            <a href="#" class="nav-item" onclick="rerollAll()">Reroll</a>
             <a href="#" class="nav-item" onclick="saveImage()">Save</a>
         </nav>
+    </div>
+    
+    <div class="canvas-container" id="canvas-container">
+        <!-- Canvas will be created here by p5.js -->
     </div>
     
     <script src="sketch.js"></script>

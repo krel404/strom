@@ -105,7 +105,10 @@ const palettes = {
 const paletteNames = Object.keys(palettes);
 
 function setup() {
-    createCanvas(windowWidth, windowHeight);
+    let canvasWidth = windowWidth - 60; // 30px on each side
+    let canvasHeight = windowHeight - 100; // 70px top + 30px bottom
+    let canvas = createCanvas(canvasWidth, canvasHeight);
+    canvas.parent('canvas-container');
     cols = floor(width / resolution);
     rows = floor(height / resolution);
     
@@ -555,7 +558,9 @@ function randomizeSettings() {
 }
 
 function windowResized() {
-    resizeCanvas(windowWidth, windowHeight);
+    let canvasWidth = windowWidth - 60; // 30px on each side
+    let canvasHeight = windowHeight - 100; // 70px top + 30px bottom
+    resizeCanvas(canvasWidth, canvasHeight);
     cols = floor(width / resolution);
     rows = floor(height / resolution);
     initializeFlowField();
@@ -563,6 +568,22 @@ function windowResized() {
 }
 
 // Navigation functions
+function rerollAll() {
+    // Randomize starting palette first
+    currentPalette = floor(random(paletteNames.length));
+    
+    // Randomize all settings
+    randomizeSettings();
+    
+    // Clear obstacles
+    obstacles = [];
+    
+    // Reinitialize everything
+    initializeFlowField();
+    updateFlowFieldWithMouse();
+    initializeParticles();
+}
+
 function regenerateArt() {
     randomizeSettings();
     obstacles = [];
