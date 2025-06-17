@@ -1,40 +1,33 @@
 let flowField = [];
+let flowField2 = [];
+let flowField3 = [];
 let particles = [];
-let depositionGrid = [];
-let asciiGrid = [];
-let coastline = [];
+let obstacles = [];
 let cols, rows;
 let resolution = 20;
 let showFlowField = false;
 let noiseScale = 0.01;
-let particleCount = 800;
+let particleCount = 500;
 let currentPalette = 0;
-
-const landChars = ['#', '@', '%', '&', '*', '+', '=', 'X', 'O', 'o', '.', ',', ';', ':', '~', '^', 'v', '<', '>', '|', '/', '\\', '-', '_'];
-const vegetationChars = ['T', 'Y', 'A', 'M', 'W', 'V', 'N', 'H', 'K', 'P', 'R', 'F', 'E', 'L', 'I', 'U', 'S', 'D', 'G', 'J', 'Q', 'B', 'C', 'Z'];
-const shallowChars = ['~', '≈', '∼', '⌐', '¬', '°', '∙', '∘', '·', '•', '◦', '○', '◯', '◌', '◇', '◈', '◊', '◉', '◎', '●', '◍', '◐', '◑', '◒', '◓'];
+let mouseInfluence = 100;
+let vortexStrength = 2;
+let obstacleMode = true;
+let maxSpeed = 2;
+let flowLayers = 1;
+let particleSize = 3;
 
 const palettes = {
     tropical: {
-        water: [0, 119, 190],
-        sand: [255, 223, 186],
-        shallow: [64, 224, 208],
-        deep: [25, 25, 112],
-        vegetation: [34, 139, 34]
+        particle: [64, 224, 208],
+        deep: [25, 25, 112]
     },
     arctic: {
-        water: [70, 130, 180],
-        sand: [248, 248, 255],
-        shallow: [176, 224, 230],
-        deep: [25, 25, 112],
-        vegetation: [119, 136, 153]
+        particle: [176, 224, 230],
+        deep: [25, 25, 112]
     },
     volcanic: {
-        water: [47, 79, 79],
-        sand: [105, 105, 105],
-        shallow: [112, 128, 144],
-        deep: [0, 0, 0],
-        vegetation: [85, 107, 47]
+        particle: [255, 99, 71],
+        deep: [0, 0, 0]
     }
 };
 
@@ -45,41 +38,40 @@ function setup() {
     cols = floor(width / resolution);
     rows = floor(height / resolution);
     
-    initializeDepositionGrid();
     initializeFlowField();
+    updateFlowFieldWithMouse(); // Initialize all layers properly
     initializeParticles();
 }
 
 function draw() {
     let palette = palettes[paletteNames[currentPalette]];
-    background(palette.deep[0], palette.deep[1], palette.deep[2], 20);
+    background(palette.deep[0], palette.deep[1], palette.deep[2], 30);
     
-    drawDepositionGrid();
+    updateFlowFieldWithMouse();
     
     if (showFlowField) {
         drawFlowField();
     }
     
+    drawObstacles();
     updateAndDrawParticles();
 }
 
 function initializeFlowField() {
     flowField = [];
-    let yoff = 0;
+    flowField2 = [];
+    flowField3 = [];
     
     for (let y = 0; y < rows; y++) {
-        let xoff = 0;
         flowField[y] = [];
+        flowField2[y] = [];
+        flowField3[y] = [];
         
         for (let x = 0; x < cols; x++) {
-            // Create swirling ocean currents using Perlin noise
-            let angle = noise(xoff, yoff) * TWO_PI * 2;
-            let vector = p5.Vector.fromAngle(angle);
-            vector.mult(0.5);
-            flowField[y][x] = vector;
-            xoff += noiseScale;
+            flowField[y][x] = createVector(0, 0);
+            flowField2[y][x] = createVector(0, 0);
+            flowField3[y][x] = createVector(0, 0);
         }
-        yoff += noiseScale;
     }
 }
 
@@ -95,21 +87,48 @@ class Particle {
         this.pos = createVector(random(width), random(height));
         this.vel = createVector(0, 0);
         this.acc = createVector(0, 0);
-        this.maxSpeed = 2;
+        this.maxSpeed = maxSpeed;
         this.age = 0;
         this.maxAge = random(200, 500);
-        this.deposited = false;
-        this.depositionStrength = random(3, 8);
     }
     
     update() {
-        // Get flow field force
+        // Get combined flow field forces
         let x = floor(this.pos.x / resolution);
         let y = floor(this.pos.y / resolution);
         
         if (x >= 0 && x < cols && y >= 0 && y < rows) {
-            let force = flowField[y][x];
+            let force = flowField[y][x].copy();
+            
+            // Add additional layers if enabled
+            if (flowLayers >= 2) {
+                force.add(flowField2[y][x]);
+            }
+            if (flowLayers >= 3) {
+                force.add(flowField3[y][x]);
+            }
+            
             this.acc.add(force);
+        }
+        
+        // Add mouse influence (attractor effect)
+        let mouseDistance = dist(this.pos.x, this.pos.y, mouseX, mouseY);
+        if (mouseDistance < mouseInfluence && mouseDistance > 5) {
+            let attractorForce = createVector(mouseX - this.pos.x, mouseY - this.pos.y);
+            attractorForce.normalize();
+            attractorForce.mult(vortexStrength / mouseDistance);
+            this.acc.add(attractorForce);
+        }
+        
+        // Check obstacles
+        for (let obstacle of obstacles) {
+            let obstacleDistance = dist(this.pos.x, this.pos.y, obstacle.x, obstacle.y);
+            if (obstacleDistance < obstacle.radius + 20) {
+                let repelForce = createVector(this.pos.x - obstacle.x, this.pos.y - obstacle.y);
+                repelForce.normalize();
+                repelForce.mult(3 / obstacleDistance);
+                this.acc.add(repelForce);
+            }
         }
         
         this.vel.add(this.acc);
@@ -124,45 +143,14 @@ class Particle {
         if (this.pos.x > width) this.pos.x = 0;
         if (this.pos.y < 0) this.pos.y = height;
         if (this.pos.y > height) this.pos.y = 0;
-        
-        // Check for deposition (slow areas become land)
-        if (this.vel.mag() < 0.8 && !this.deposited && this.age > 20) {
-            this.deposited = true;
-            this.deposit();
-        }
     }
     
     display() {
-        if (!this.deposited) {
-            // Flowing particles (sediment in water)
-            let palette = palettes[paletteNames[currentPalette]];
-            let alpha = map(this.vel.mag(), 0, this.maxSpeed, 50, 150);
-            fill(palette.shallow[0], palette.shallow[1], palette.shallow[2], alpha);
-            noStroke();
-            circle(this.pos.x, this.pos.y, 3);
-        }
-    }
-    
-    deposit() {
-        let gridX = floor(this.pos.x / resolution);
-        let gridY = floor(this.pos.y / resolution);
-        
-        if (gridX >= 0 && gridX < cols && gridY >= 0 && gridY < rows) {
-            depositionGrid[gridY][gridX] += this.depositionStrength;
-            
-            // Add to neighboring cells for smoother islands
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dy = -1; dy <= 1; dy++) {
-                    let nx = gridX + dx;
-                    let ny = gridY + dy;
-                    if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
-                        let distance = sqrt(dx*dx + dy*dy);
-                        let strength = this.depositionStrength * (1 - distance * 0.2);
-                        depositionGrid[ny][nx] += max(0, strength);
-                    }
-                }
-            }
-        }
+        let palette = palettes[paletteNames[currentPalette]];
+        let alpha = map(this.vel.mag(), 0, this.maxSpeed, 50, 200);
+        fill(palette.particle[0], palette.particle[1], palette.particle[2], alpha);
+        noStroke();
+        circle(this.pos.x, this.pos.y, particleSize);
     }
     
     isDead() {
@@ -177,7 +165,7 @@ function updateAndDrawParticles() {
         
         if (particles[i].isDead()) {
             particles.splice(i, 1);
-            particles.push(new Particle()); // Respawn
+            particles.push(new Particle());
         }
     }
 }
@@ -199,70 +187,106 @@ function drawFlowField() {
     }
 }
 
-function initializeDepositionGrid() {
-    depositionGrid = [];
-    asciiGrid = [];
+function updateFlowFieldWithMouse() {
+    let timeOffset = frameCount * 0.001;
+    
+    // Base flow field (Layer 1)
+    let yoff = timeOffset;
     for (let y = 0; y < rows; y++) {
-        depositionGrid[y] = [];
-        asciiGrid[y] = [];
+        let xoff = timeOffset;
         for (let x = 0; x < cols; x++) {
-            depositionGrid[y][x] = 0;
-            asciiGrid[y][x] = null;
+            let angle = noise(xoff, yoff, timeOffset) * TWO_PI * 2;
+            let vector = p5.Vector.fromAngle(angle);
+            vector.mult(0.5);
+            flowField[y][x] = vector;
+            xoff += noiseScale;
+        }
+        yoff += noiseScale;
+    }
+    
+    // Layer 2 - Different scale and speed (more pronounced)
+    if (flowLayers >= 2) {
+        yoff = timeOffset * 0.7;
+        for (let y = 0; y < rows; y++) {
+            let xoff = timeOffset * 0.7;
+            for (let x = 0; x < cols; x++) {
+                let angle = noise(xoff * 3, yoff * 3, timeOffset * 3) * TWO_PI * 4;
+                let vector = p5.Vector.fromAngle(angle);
+                vector.mult(0.8); // Much stronger
+                flowField2[y][x] = vector;
+                xoff += noiseScale * 3;
+            }
+            yoff += noiseScale * 3;
+        }
+    }
+    
+    // Layer 3 - Extremely chaotic layer for dramatic effect
+    if (flowLayers >= 3) {
+        yoff = timeOffset * 2.5;
+        for (let y = 0; y < rows; y++) {
+            let xoff = timeOffset * 2.5;
+            for (let x = 0; x < cols; x++) {
+                // Multiple noise sources for extreme chaos
+                let angle1 = noise(xoff * 0.1, yoff * 0.1, timeOffset * 0.1) * TWO_PI * 8;
+                let angle2 = noise(xoff * 5, yoff * 5, timeOffset * 5) * TWO_PI * 12;
+                let angle = angle1 + angle2; // Combine large and small scale chaos
+                
+                let vector = p5.Vector.fromAngle(angle);
+                vector.mult(1.2); // Very strong influence
+                flowField3[y][x] = vector;
+                xoff += noiseScale * 0.1;
+            }
+            yoff += noiseScale * 0.1;
         }
     }
 }
 
-function drawDepositionGrid() {
-    let palette = palettes[paletteNames[currentPalette]];
-    
-    for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-            let amount = depositionGrid[y][x];
-            if (amount > 0) {
-                let px = x * resolution;
-                let py = y * resolution;
-                
-                // Create elevation-based coloring
-                let elevation = min(amount / 20, 1); // Normalize to 0-1
-                
-                if (elevation > 0.7) {
-                    // High elevation - vegetation
-                    fill(palette.vegetation[0], palette.vegetation[1], palette.vegetation[2], 255);
-                } else if (elevation > 0.3) {
-                    // Medium elevation - sandy land
-                    fill(palette.sand[0], palette.sand[1], palette.sand[2], 255);
-                } else {
-                    // Low elevation - shallow water/beach
-                    let alpha = map(elevation, 0, 0.3, 100, 200);
-                    fill(palette.shallow[0], palette.shallow[1], palette.shallow[2], alpha);
-                }
-                
-                // Generate ASCII character if not already assigned
-                if (!asciiGrid[y][x]) {
-                    if (elevation > 0.7) {
-                        asciiGrid[y][x] = random(vegetationChars);
-                    } else if (elevation > 0.3) {
-                        asciiGrid[y][x] = random(landChars);
-                    } else {
-                        asciiGrid[y][x] = random(shallowChars);
-                    }
-                }
-                
-                // Draw ASCII character
-                textAlign(CENTER, CENTER);
-                let fontSize = map(elevation, 0, 1, 12, 24);
-                textSize(fontSize);
-                text(asciiGrid[y][x], px + resolution/2, py + resolution/2);
-            }
+function drawObstacles() {
+    // Obstacles are now fully invisible - only their physics effects remain
+}
+
+function drawMouseInfluence() {
+    if (mouseX > 0 && mouseX < width && mouseY > 0 && mouseY < height) {
+        noFill();
+        stroke(255, 80);
+        strokeWeight(1);
+        circle(mouseX, mouseY, mouseInfluence * 2);
+        
+        // Draw vortex indication
+        stroke(255, 120);
+        strokeWeight(2);
+        let numLines = 8;
+        for (let i = 0; i < numLines; i++) {
+            let angle = (TWO_PI / numLines) * i + frameCount * 0.05;
+            let x1 = mouseX + cos(angle) * 15;
+            let y1 = mouseY + sin(angle) * 15;
+            let x2 = mouseX + cos(angle) * 25;
+            let y2 = mouseY + sin(angle) * 25;
+            line(x1, y1, x2, y2);
         }
+    }
+}
+
+function mousePressed() {
+    obstacles.push({
+        x: mouseX,
+        y: mouseY,
+        radius: random(20, 50)
+    });
+}
+
+function keyPressed() {
+    if (key === 'c' || key === 'C') {
+        obstacles = [];
     }
 }
 
 // Control functions
 function regenerate() {
     noiseScale = random(0.005, 0.02);
-    initializeDepositionGrid();
+    obstacles = [];
     initializeFlowField();
+    updateFlowFieldWithMouse(); // Initialize all layers properly
     initializeParticles();
 }
 
@@ -272,4 +296,55 @@ function toggleFlowField() {
 
 function cyclePalette() {
     currentPalette = (currentPalette + 1) % paletteNames.length;
+}
+
+
+function clearObstacles() {
+    obstacles = [];
+}
+
+// Real-time control functions
+function updateTurbulence(value) {
+    noiseScale = parseFloat(value);
+    document.getElementById('turbulenceValue').textContent = parseFloat(value).toFixed(3);
+}
+
+function updateSpeed(value) {
+    maxSpeed = parseFloat(value);
+    // Update existing particles
+    for (let particle of particles) {
+        particle.maxSpeed = maxSpeed;
+    }
+    document.getElementById('speedValue').textContent = parseFloat(value).toFixed(1);
+}
+
+function updateParticleCount(value) {
+    let newCount = parseInt(value);
+    if (newCount > particleCount) {
+        // Add particles
+        for (let i = particleCount; i < newCount; i++) {
+            particles.push(new Particle());
+        }
+    } else if (newCount < particleCount) {
+        // Remove particles
+        particles.splice(newCount);
+    }
+    particleCount = newCount;
+    document.getElementById('particleValue').textContent = newCount;
+}
+
+function updateVortexStrength(value) {
+    vortexStrength = parseFloat(value);
+    document.getElementById('vortexValue').textContent = parseFloat(value).toFixed(1);
+}
+
+function updateFlowLayers(value) {
+    flowLayers = parseInt(value);
+    document.getElementById('layersValue').textContent = value;
+    console.log('Flow layers updated to:', flowLayers);
+}
+
+function updateParticleSize(value) {
+    particleSize = parseFloat(value);
+    document.getElementById('sizeValue').textContent = parseFloat(value).toFixed(0);
 }

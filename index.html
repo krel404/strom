@@ -35,13 +35,75 @@
         button:hover {
             background: #555;
         }
+        .slider-container {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider {
+            width: 120px;
+            height: 20px;
+        }
+        .slider-label {
+            font-size: 12px;
+            min-width: 80px;
+        }
+        .slider-value {
+            font-size: 11px;
+            color: #ccc;
+            min-width: 30px;
+        }
     </style>
 </head>
 <body>
     <div id="controls">
-        <button onclick="regenerate()">New Archipelago</button>
+        <button onclick="regenerate()">New Flow Field</button>
         <button onclick="toggleFlowField()">Toggle Flow Field</button>
         <button onclick="cyclePalette()">Change Palette</button>
+        <button onclick="clearObstacles()">Clear Obstacles</button>
+        
+        <div class="slider-container">
+            <div class="slider-label">Turbulence:</div>
+            <input type="range" class="slider" id="turbulenceSlider" min="0.005" max="0.05" step="0.001" value="0.01" oninput="updateTurbulence(this.value)">
+            <div class="slider-value" id="turbulenceValue">0.01</div>
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Speed:</div>
+            <input type="range" class="slider" id="speedSlider" min="0.5" max="4" step="0.1" value="2" oninput="updateSpeed(this.value)">
+            <div class="slider-value" id="speedValue">2.0</div>
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Particles:</div>
+            <input type="range" class="slider" id="particleSlider" min="100" max="1500" step="50" value="500" oninput="updateParticleCount(this.value)">
+            <div class="slider-value" id="particleValue">500</div>
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Attractor:</div>
+            <input type="range" class="slider" id="vortexSlider" min="0" max="5" step="0.1" value="2" oninput="updateVortexStrength(this.value)">
+            <div class="slider-value" id="vortexValue">2.0</div>
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Flow Layers:</div>
+            <input type="range" class="slider" id="layersSlider" min="1" max="3" step="1" value="1" oninput="updateFlowLayers(this.value)">
+            <div class="slider-value" id="layersValue">1</div>
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Size:</div>
+            <input type="range" class="slider" id="sizeSlider" min="1" max="100" step="1" value="3" oninput="updateParticleSize(this.value)">
+            <div class="slider-value" id="sizeValue">3.0</div>
+        </div>
+        
+        <div style="margin-top: 10px; font-size: 12px;">
+            <div>Move mouse to attract particles</div>
+            <div>Click to place invisible obstacles</div>
+            <div>Press 'C' to clear obstacles</div>
+        </div>
     </div>
     <script src="sketch.js"></script>
 </body>
