@@ -3,22 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Archipelago - Generative Art</title>
+    <title>Ström - Generative Art</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
             background: #1a1a1a;
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            pointer-events: none;
+        }
+        
+        .title {
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            pointer-events: auto;
+        }
+        
+        .nav-menu {
+            display: flex;
+            gap: 30px;
+            pointer-events: auto;
+        }
+        
+        .nav-item {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            font-weight: 400;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-item:hover {
+            color: rgba(255, 255, 255, 1);
         }
     </style>
 </head>
 <body>
-    
-    <div style="position: absolute; bottom: 20px; left: 20px; color: rgba(255, 255, 255, 0.3); font-size: 11px; font-family: Arial, sans-serif;">
-        CMD + R to refresh
+    <div class="header">
+        <div class="title">Ström</div>
+        <nav class="nav-menu">
+            <a href="#" class="nav-item" onclick="regenerateArt()">Regenerate</a>
+            <a href="#" class="nav-item" onclick="cyclePalette()">Palette</a>
+            <a href="#" class="nav-item" onclick="toggleFlowField()">Flow Field</a>
+            <a href="#" class="nav-item" onclick="saveImage()">Save</a>
+        </nav>
     </div>
     
     <script src="sketch.js"></script>

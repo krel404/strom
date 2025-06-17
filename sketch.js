@@ -561,3 +561,24 @@ function windowResized() {
     initializeFlowField();
     updateFlowFieldWithMouse();
 }
+
+// Navigation functions
+function regenerateArt() {
+    randomizeSettings();
+    obstacles = [];
+    initializeFlowField();
+    updateFlowFieldWithMouse();
+    initializeParticles();
+}
+
+function cyclePalette() {
+    currentPalette = (currentPalette + 1) % paletteNames.length;
+}
+
+function toggleFlowField() {
+    showFlowField = !showFlowField;
+}
+
+function saveImage() {
+    save('strom-' + Date.now() + '.png');
+}
