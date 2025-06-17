@@ -116,6 +116,12 @@ function setup() {
     cols = floor(width / resolution);
     rows = floor(height / resolution);
     
+    // Randomize starting palette
+    currentPalette = floor(random(paletteNames.length));
+    
+    // Randomize all slider settings
+    randomizeSettings();
+    
     initializeFlowField();
     updateFlowFieldWithMouse(); // Initialize all layers properly
     initializeParticles();
@@ -177,6 +183,8 @@ class Particle {
         this.maxSpeed = maxSpeed;
         this.age = 0;
         this.maxAge = random(200, 500);
+        this.trail = [];
+        this.trailLength = 15;
     }
     
     update() {
@@ -225,6 +233,14 @@ class Particle {
         
         this.age++;
         
+        // Add current position to trail
+        this.trail.push(createVector(this.pos.x, this.pos.y));
+        
+        // Keep trail at maximum length
+        if (this.trail.length > this.trailLength) {
+            this.trail.splice(0, 1);
+        }
+        
         // Wrap around edges
         if (this.pos.x < 0) this.pos.x = width;
         if (this.pos.x > width) this.pos.x = 0;
@@ -234,7 +250,20 @@ class Particle {
     
     display() {
         let palette = palettes[paletteNames[currentPalette]];
-        let alpha = map(this.vel.mag(), 0, this.maxSpeed, 50, 200);
+        
+        // Draw trail
+        for (let i = 0; i < this.trail.length; i++) {
+            let trailPos = this.trail[i];
+            let trailAlpha = map(i, 0, this.trail.length - 1, 10, 200);
+            let trailSize = map(i, 0, this.trail.length - 1, particleSize * 0.2, particleSize);
+            
+            fill(palette.particle[0], palette.particle[1], palette.particle[2], trailAlpha);
+            noStroke();
+            circle(trailPos.x, trailPos.y, trailSize);
+        }
+        
+        // Draw main particle (brightest)
+        let alpha = map(this.vel.mag(), 0, this.maxSpeed, 100, 255);
         fill(palette.particle[0], palette.particle[1], palette.particle[2], alpha);
         noStroke();
         circle(this.pos.x, this.pos.y, particleSize);
@@ -455,7 +484,40 @@ function updateFlowLayers(value) {
 
 function updateParticleSize(value) {
     particleSize = parseFloat(value);
-    document.getElementById('sizeValue').textContent = parseFloat(value).toFixed(0);
+    document.getElementById('sizeValue').textContent = parseFloat(value).toFixed(1);
+}
+
+function randomizeSettings() {
+    // Randomize turbulence (0.005 - 0.05)
+    noiseScale = random(0.005, 0.05);
+    document.getElementById('turbulenceSlider').value = noiseScale;
+    document.getElementById('turbulenceValue').textContent = noiseScale.toFixed(3);
+    
+    // Randomize speed (0.5 - 4.0)
+    maxSpeed = random(0.5, 4.0);
+    document.getElementById('speedSlider').value = maxSpeed;
+    document.getElementById('speedValue').textContent = maxSpeed.toFixed(1);
+    
+    // Randomize particle count (100 - 1500)
+    let newParticleCount = floor(random(100, 1501));
+    particleCount = newParticleCount;
+    document.getElementById('particleSlider').value = particleCount;
+    document.getElementById('particleValue').textContent = particleCount;
+    
+    // Randomize attractor strength (0 - 5.0)
+    vortexStrength = random(0, 5.0);
+    document.getElementById('vortexSlider').value = vortexStrength;
+    document.getElementById('vortexValue').textContent = vortexStrength.toFixed(1);
+    
+    // Randomize flow layers (1 - 3)
+    flowLayers = floor(random(1, 4));
+    document.getElementById('layersSlider').value = flowLayers;
+    document.getElementById('layersValue').textContent = flowLayers;
+    
+    // Randomize particle size (1 - 10)
+    particleSize = random(1, 10);
+    document.getElementById('sizeSlider').value = particleSize;
+    document.getElementById('sizeValue').textContent = particleSize.toFixed(1);
 }
 
 // Audio System Functions
