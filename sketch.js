@@ -511,6 +511,9 @@ function keyPressed() {
     if (key === 'c' || key === 'C') {
         obstacles = [];
     }
+    if (key === 'r' || key === 'R') {
+        rerollAll();
+    }
 }
 
 
@@ -598,6 +601,55 @@ function cyclePalette() {
 
 function toggleFlowField() {
     showFlowField = !showFlowField;
+}
+
+let isFullscreenOverlay = false;
+
+function toggleFullscreen() {
+    let canvasContainer = document.getElementById('canvas-container');
+    
+    if (!isFullscreenOverlay) {
+        // Enter fullscreen overlay
+        canvasContainer.classList.add('fullscreen-overlay');
+        isFullscreenOverlay = true;
+        
+        // Resize canvas to full window dimensions
+        resizeCanvas(windowWidth, windowHeight);
+        cols = floor(width / resolution);
+        rows = floor(height / resolution);
+        initializeFlowField();
+        updateFlowFieldWithMouse();
+        
+        // Add click listener to exit fullscreen
+        canvasContainer.addEventListener('click', exitFullscreen);
+        
+        // Hide the message after 3 seconds
+        setTimeout(() => {
+            canvasContainer.classList.add('hide-message');
+        }, 3000);
+        
+    } else {
+        exitFullscreen();
+    }
+}
+
+function exitFullscreen() {
+    let canvasContainer = document.getElementById('canvas-container');
+    
+    canvasContainer.classList.remove('fullscreen-overlay', 'hide-message');
+    isFullscreenOverlay = false;
+    
+    // Resize back to container dimensions
+    let canvasWidth = windowWidth - 60;
+    let canvasHeight = windowHeight - 100;
+    resizeCanvas(canvasWidth, canvasHeight);
+    cols = floor(width / resolution);
+    rows = floor(height / resolution);
+    initializeFlowField();
+    updateFlowFieldWithMouse();
+    
+    // Remove click listener
+    canvasContainer.removeEventListener('click', exitFullscreen);
 }
 
 function saveImage() {
